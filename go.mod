@@ -1,6 +1,6 @@
 module github.com/metacubex/yamux
 
-go 1.24
+go 1.20
 
 require (
 	github.com/metacubex/sing v0.5.2
