@@ -1,4 +1,4 @@
-module github.com/libp2p/go-yamux/v5
+module github.com/metacubex/yamux
 
 go 1.24
 
