@@ -14,8 +14,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	pool "github.com/libp2p/go-buffer-pool"
 )
 
 // The MemoryManager allows management of memory allocations.
@@ -518,16 +516,16 @@ func (s *Session) sendMsg(hdr header, body []byte, deadline <-chan struct{}, wai
 	}
 
 	// duplicate as we're sending this async.
-	buf := pool.Get(headerSize + len(body))
+	buf := poolGet(headerSize + len(body))
 	copy(buf[:headerSize], hdr[:])
 	copy(buf[headerSize:], body)
 
 	select {
 	case <-s.shutdownCh:
-		pool.Put(buf)
+		poolPut(buf)
 		return s.shutdownErr
 	case <-s.sendDoneCh:
-		pool.Put(buf)
+		poolPut(buf)
 		if waitForShutDown {
 			<-s.shutdownCh
 			return s.shutdownErr
@@ -536,7 +534,7 @@ func (s *Session) sendMsg(hdr header, body []byte, deadline <-chan struct{}, wai
 	case s.sendCh <- buf:
 		return nil
 	case <-deadline:
-		pool.Put(buf)
+		poolPut(buf)
 		return ErrTimeout
 	}
 }
@@ -623,11 +621,11 @@ func (s *Session) sendLoop() (err error) {
 		// Make sure to send any pings & pongs first so they don't get stuck behind writes.
 		select {
 		case pingID := <-s.pingCh:
-			buf = pool.Get(headerSize)
+			buf = poolGet(headerSize)
 			hdr := encode(typePing, flagSYN, 0, pingID)
 			copy(buf, hdr[:])
 		case pingID := <-s.pongCh:
-			buf = pool.Get(headerSize)
+			buf = poolGet(headerSize)
 			hdr := encode(typePing, flagACK, 0, pingID)
 			copy(buf, hdr[:])
 		default:
@@ -635,11 +633,11 @@ func (s *Session) sendLoop() (err error) {
 			select {
 			case buf = <-s.sendCh:
 			case pingID := <-s.pingCh:
-				buf = pool.Get(headerSize)
+				buf = poolGet(headerSize)
 				hdr := encode(typePing, flagSYN, 0, pingID)
 				copy(buf, hdr[:])
 			case pingID := <-s.pongCh:
-				buf = pool.Get(headerSize)
+				buf = poolGet(headerSize)
 				hdr := encode(typePing, flagACK, 0, pingID)
 				copy(buf, hdr[:])
 			case <-s.shutdownCh:
@@ -671,12 +669,12 @@ func (s *Session) sendLoop() (err error) {
 		}
 
 		if err := extendWriteDeadline(); err != nil {
-			pool.Put(buf)
+			poolPut(buf)
 			return err
 		}
 
 		_, err := writer.Write(buf)
-		pool.Put(buf)
+		poolPut(buf)
 
 		if err != nil {
 			if os.IsTimeout(err) {

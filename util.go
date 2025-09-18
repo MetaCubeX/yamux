@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"io"
 	"sync"
-
-	pool "github.com/libp2p/go-buffer-pool"
 )
 
 // asyncSendErr is used to try an async send of an error
@@ -119,7 +117,7 @@ func (s *segmentedBuffer) Read(b []byte) (int, error) {
 	data := s.b[s.bPos][s.readPos:]
 	n := copy(b, data)
 	if n == len(data) {
-		pool.Put(s.b[s.bPos])
+		poolPut(s.b[s.bPos])
 		s.b[s.bPos] = nil
 		s.bPos++
 		s.readPos = 0
@@ -146,7 +144,7 @@ func (s *segmentedBuffer) Append(input io.Reader, length uint32) error {
 		return err
 	}
 
-	dst := pool.Get(int(length))
+	dst := poolGet(int(length))
 	n, err := io.ReadFull(input, dst)
 	if err == io.EOF {
 		err = io.ErrUnexpectedEOF
