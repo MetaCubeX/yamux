@@ -1,28 +1,8 @@
 package yamux
 
 import (
-	"fmt"
 	"net"
 )
-
-// hasAddr is used to get the address from the underlying connection
-type hasAddr interface {
-	LocalAddr() net.Addr
-	RemoteAddr() net.Addr
-}
-
-// yamuxAddr is used when we cannot get the underlying address
-type yamuxAddr struct {
-	Addr string
-}
-
-func (*yamuxAddr) Network() string {
-	return "yamux"
-}
-
-func (y *yamuxAddr) String() string {
-	return fmt.Sprintf("yamux:%s", y.Addr)
-}
 
 // Addr is used to get the address of the listener.
 func (s *Session) Addr() net.Addr {
@@ -32,21 +12,13 @@ func (s *Session) Addr() net.Addr {
 // LocalAddr is used to get the local address of the
 // underlying connection.
 func (s *Session) LocalAddr() net.Addr {
-	addr, ok := s.conn.(hasAddr)
-	if !ok {
-		return &yamuxAddr{"local"}
-	}
-	return addr.LocalAddr()
+	return s.conn.LocalAddr()
 }
 
 // RemoteAddr is used to get the address of remote end
 // of the underlying connection
 func (s *Session) RemoteAddr() net.Addr {
-	addr, ok := s.conn.(hasAddr)
-	if !ok {
-		return &yamuxAddr{"remote"}
-	}
-	return addr.RemoteAddr()
+	return s.conn.RemoteAddr()
 }
 
 // LocalAddr returns the local address
